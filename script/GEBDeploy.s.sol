@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import {DSAuth, DSAuthority} from "ds-auth/auth.sol";
 import {DSPause, DSPauseProxy} from "ds-pause/pause.sol";
 import {DSProtestPause} from "ds-pause/protest-pause.sol";
-import {DSToken} from "ds-token/token.sol";
+import {DSDelegateToken} from "ds-token/delegate.sol";
 
 import {SAFEEngine} from "geb/SAFEEngine.sol";
 import {TaxCollector} from "geb/TaxCollector.sol";
@@ -40,7 +40,18 @@ contract GEBDeploy is Script {
     ESM                               public esm;
     DSPause                           public pause;
     DSProtestPause                    public protestPause;
-    DSToken                           public protocolToken;
+    DSDelegateToken                   public protocolToken;
+    EnglishCollateralAuctionHouse     public englishCollateralAuctionHouse;
+
+    uint256 chainId;
+
+    string public protocolTokenName = vm.envString("PROTOCOL_TOKEN_NAME");
+    string public protocolTokenSymbol = vm.envString("PROTOCOL_TOKEN_SYMBOL");
+
+    string public protocolCoinName = vm.envString("PROTOCOL_COIN_NAME");
+    string public protocolCoinSymbol = vm.envString("PROTOCOL_COIN_SYMBOL");
+
+    bytes32 public mockCollateralType = bytes32("MockERC20");
 
     function setUp() public {}
 
@@ -49,11 +60,35 @@ contract GEBDeploy is Script {
         address deployer = vm.rememberKey(privKey);
         vm.startBroadcast(deployer);
 
+        uint256 id;
+        assembly {
+            id := chainid()
+        }
+        chainId = id;
+
         safeEngine = new SAFEEngine();
 
         liquidationEngine = new LiquidationEngine(address(safeEngine));
 
-        protocolToken = new DSToken("Reflexer", "FLX");
+        protocolToken = new DSDelegateToken(protocolTokenName, protocolTokenSymbol);
+
+        coin = new Coin(protocolCoinName, protocolCoinSymbol, chainId);
+
+        recyclingSurplusAuctionHouse = new RecyclingSurplusAuctionHouse(address(safeEngine), address(protocolToken));
+
+        DebtAuctionHouse debtAuctionHouse = new DebtAuctionHouse(address(safeEngine), address(protocolToken));
+
+        AccountingEngine accountingEngine = new AccountingEngine(
+            address(safeEngine),
+            address(recyclingSurplusAuctionHouse),
+            address(debtAuctionHouse)
+        );
+
+        englishCollateralAuctionHouse = new EnglishCollateralAuctionHouse(
+            address(safeEngine),
+            address(liquidationEngine),
+            mockCollateralType
+        );
 
         taxCollector = new TaxCollector(address(safeEngine));
     }
