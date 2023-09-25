@@ -22,6 +22,8 @@ import {StabilityFeeTreasury} from "geb/StabilityFeeTreasury.sol";
 import {CoinSavingsAccount} from "geb/CoinSavingsAccount.sol";
 import {OracleRelayer} from "geb/OracleRelayer.sol";
 
+import {TestToken} from "src/mocks/TestToken.sol";
+
 contract GEBDeploy is Script {
 
     SAFEEngine                        public safeEngine;
@@ -42,6 +44,7 @@ contract GEBDeploy is Script {
     DSProtestPause                    public protestPause;
     DSDelegateToken                   public protocolToken;
     EnglishCollateralAuctionHouse     public englishCollateralAuctionHouse;
+    TestToken                         public testToken;
 
     uint256 chainId;
 
@@ -89,6 +92,12 @@ contract GEBDeploy is Script {
             address(liquidationEngine),
             mockCollateralType
         );
+
+        globalSettlement = new GlobalSettlement();
+
+        testToken = new TestToken("TestToken", "TT", chainId);
+
+
 
         taxCollector = new TaxCollector(address(safeEngine));
     }
