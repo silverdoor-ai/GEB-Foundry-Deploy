@@ -5,6 +5,7 @@ import "forge-std/Script.sol";
 import {DSAuth, DSAuthority} from "ds-auth/auth.sol";
 import {DSPause, DSPauseProxy} from "ds-pause/pause.sol";
 import {DSProtestPause} from "ds-pause/protest-pause.sol";
+import {DSToken} from "ds-token/token.sol";
 
 import {SAFEEngine} from "geb/SAFEEngine.sol";
 import {TaxCollector} from "geb/TaxCollector.sol";
@@ -20,16 +21,6 @@ import {ESM} from "esm/ESM.sol";
 import {StabilityFeeTreasury} from "geb/StabilityFeeTreasury.sol";
 import {CoinSavingsAccount} from "geb/CoinSavingsAccount.sol";
 import {OracleRelayer} from "geb/OracleRelayer.sol";
-
-abstract contract CollateralAuctionHouse {
-    function modifyParameters(bytes32, uint256) virtual external;
-    function modifyParameters(bytes32, address) virtual external;
-}
-
-abstract contract AuthorizableContract {
-    function addAuthorization(address) virtual external;
-    function removeAuthorization(address) virtual external;
-}
 
 contract GEBDeploy is Script {
 
@@ -49,6 +40,7 @@ contract GEBDeploy is Script {
     ESM                               public esm;
     DSPause                           public pause;
     DSProtestPause                    public protestPause;
+    DSToken                           public protocolToken;
 
     function setUp() public {}
 
@@ -60,6 +52,8 @@ contract GEBDeploy is Script {
         safeEngine = new SAFEEngine();
 
         liquidationEngine = new LiquidationEngine(address(safeEngine));
+
+        protocolToken = new DSToken("Reflexer", "FLX");
 
         taxCollector = new TaxCollector(address(safeEngine));
     }
