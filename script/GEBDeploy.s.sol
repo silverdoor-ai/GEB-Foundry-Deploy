@@ -151,5 +151,28 @@ contract GEBDeploy is Script {
         globalSettlement.addAuthorization(address(esm));
 
         pause = new DSPause(uint256(12), address(msg.sender), authority);
+        protestPause = new DSProtestPause(uint256(12), uint256(12), msg.sender, authority);
+
+        console2.log("Deployed SAFEEngine at address: ", address(safeEngine));
+        console2.log("Deployed TaxCollector at address: ", address(taxCollector));
+        console2.log("Deployed AccountingEngine at address: ", address(accountingEngine));
+        console2.log("Deployed LiquidationEngine at address: ", address(liquidationEngine));
+        console2.log("Deployed StabilityFeeTreasury at address: ", address(stabilityFeeTreasury));
+        console2.log("Deployed System Coin at address: ", address(coin));
+        console2.log("Deployed CoinJoin at address: ", address(coinJoin));
+        console2.log("Deployed BasicCollateralJoin at address: ", address(basicCollateralJoin));
+        console2.log("Deployed RecyclingSurplusAuctionHouse at address: ", address(recyclingSurplusAuctionHouse));
+        console2.log("Deployed DebtAuctionHouse at address: ", address(debtAuctionHouse));
+        console2.log("Deployed OracleRelayer at address: ", address(oracleRelayer));
+        console2.log("Deployed CoinSavingsAccount at address: ", address(coinSavingsAccount));
+        console2.log("Deployed GlobalSettlement at address: ", address(globalSettlement));
+        console2.log("Deployed ESM at address: ", address(esm));
+        console2.log("Deployed DSPause at address: ", address(pause));
+        console2.log("Deployed DSProtestPause at address: ", address(protestPause));
+        console2.log("Deployed DSDelegateToken Protocol Token at address: ", address(protocolToken));
+        console2.log("Deployed EnglishCollateralAuctionHouse at address: ", address(englishCollateralAuctionHouse));
+        console2.log("Deployed TestToken at address: ", address(testToken));
+        console2.log("Deployed DSValue at address: ", address(oracle));
+        console2.log("Deployed MockERC20 at address: ", address(testToken));
     }
 }
