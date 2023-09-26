@@ -62,8 +62,6 @@ contract GEBDeploy is Script {
 
     bytes32 public mockCollateralType = bytes32("MockERC20");
 
-    function setUp() public {}
-
     function run() public {
         uint256 privKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.rememberKey(privKey);
@@ -81,15 +79,16 @@ contract GEBDeploy is Script {
         safeEngine.addAuthorization(address(liquidationEngine));
 
         protocolToken = new DSDelegateToken(protocolTokenName, protocolTokenSymbol);
+        protocolToken.mint(10_000_000 ether);
 
         coin = new Coin(protocolCoinName, protocolCoinSymbol, chainId);
 
         recyclingSurplusAuctionHouse = new RecyclingSurplusAuctionHouse(address(safeEngine), address(protocolToken));
 
-        DebtAuctionHouse debtAuctionHouse = new DebtAuctionHouse(address(safeEngine), address(protocolToken));
+        debtAuctionHouse = new DebtAuctionHouse(address(safeEngine), address(protocolToken));
         safeEngine.addAuthorization(address(debtAuctionHouse));
 
-        AccountingEngine accountingEngine = new AccountingEngine(
+        accountingEngine = new AccountingEngine(
             address(safeEngine),
             address(recyclingSurplusAuctionHouse),
             address(debtAuctionHouse)
@@ -115,6 +114,7 @@ contract GEBDeploy is Script {
         accountingEngine.addAuthorization(address(globalSettlement));
 
         testToken = new TestToken("TestToken", "TT", chainId);
+        testToken.mintTokensTo(msg.sender, 10_000_000 ether);
 
         coinJoin = new CoinJoin(address(safeEngine), address(coin));
         coin.addAuthorization(address(coinJoin));
@@ -146,7 +146,7 @@ contract GEBDeploy is Script {
             address(globalSettlement),
             address(msg.sender),
             address(msg.sender),
-            uint256(5000000)
+            1_000_000 ether
         );
         globalSettlement.addAuthorization(address(esm));
 
@@ -175,4 +175,7 @@ contract GEBDeploy is Script {
         console2.log("Deployed DSValue at address: ", address(oracle));
         console2.log("Deployed MockERC20 at address: ", address(testToken));
     }
+
+    // deploy command for Sepolia
+    // forge script script/GEBDeploy.s.sol:GEBDeploy -f sepolia --broadcast --verify
 }
