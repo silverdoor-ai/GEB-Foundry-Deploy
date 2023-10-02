@@ -64,4 +64,24 @@ contract Parameters {
     bytes32 public accountingEnginePostSettlementSurplusDrain = "postSettlementSurplusDrain";
     bytes32 public accountingEngineProtocolTokenAuthority = "protocolTokenAuthority";
     bytes32 public accountingEngineExtraSurplusReceiver = "extraSurplusReceiver";
+
+    // Surplus Auction house params
+    // uint256
+    bytes32 public surplusAuctionHouseBidIncrease = "bidIncrease";
+    bytes32 public surplusAuctionHouseBidDuration = "bidDuration";
+    bytes32 public surplusAuctionHouseTotalAuctionLength = "totalAuctionLength";
+
+    // address
+    bytes32 public surplusAuctionHouseProtocolTokenBidReceiver = "protocolTokenBidReceiver";
+
+    // Debt Auction house params
+    // uint256
+    bytes32 public debtAuctionHouseBidDecrease = "bidDecrease";
+    bytes32 public debtAuctionHouseAmountSoldIncrease = "amountSoldIncrease";
+    bytes32 public debtAuctionHouseBidDuration = "bidDuration";
+    bytes32 public debtAuctionHouseTotalAuctionLength = "totalAuctionLength";
+
+    // address
+    bytes32 public debtAuctionHouseProtocolToken = "protocolToken";
+    bytes32 public debtAuctionHouseAccountingEngine = "accountingEngine";
 }

@@ -37,7 +37,6 @@ contract GEBDeploy is Script, Parameters {
     CoinJoin                          public coinJoin;
     BasicCollateralJoin               public basicCollateralJoin;
     RecyclingSurplusAuctionHouse      public recyclingSurplusAuctionHouse;
-    BurningSurplusAuctionHouse        public burningSurplusAuctionHouse;
     DebtAuctionHouse                  public debtAuctionHouse;
     OracleRelayer                     public oracleRelayer;
     CoinSavingsAccount                public coinSavingsAccount;
@@ -79,6 +78,24 @@ contract GEBDeploy is Script, Parameters {
         oracleRelayer.modifyParameters(collateralTypeBytes32, relayerOracle, address(oracle));
 
         oracleRelayer.modifyParameters(collateralTypeBytes32, relayerSafetyCRatio, 1.5 ether);
+    }
+
+    function initializeSurplusAuctionHouse() public {
+        recyclingSurplusAuctionHouse.modifyParameters(surplusAuctionHouseBidIncrease, 1.01 ether);
+        recyclingSurplusAuctionHouse.modifyParameters(surplusAuctionHouseBidDuration, 15 minutes);
+        recyclingSurplusAuctionHouse.modifyParameters(surplusAuctionHouseTotalAuctionLength, 30 minutes);
+
+        recyclingSurplusAuctionHouse.modifyParameters(surplusAuctionHouseProtocolTokenBidReceiver, address(this));
+    }
+
+    function initializeDebtAuctionHouse() public {
+        debtAuctionHouse.modifyParameters(debtAuctionHouseBidDecrease, 1.05 ether);
+        debtAuctionHouse.modifyParameters(debtAuctionHouseAmountSoldIncrease, 1.05 ether);
+        debtAuctionHouse.modifyParameters(debtAuctionHouseBidDuration, 15 minutes);
+        debtAuctionHouse.modifyParameters(debtAuctionHouseTotalAuctionLength, 30 minutes);
+
+        debtAuctionHouse.modifyParameters(debtAuctionHouseProtocolToken, address(protocolToken));
+        debtAuctionHouse.modifyParameters(debtAuctionHouseAccountingEngine, address(accountingEngine));
     }
 
     function initializeAccountingEngine() public {
@@ -193,7 +210,8 @@ contract GEBDeploy is Script, Parameters {
         initializeSAFEEngine();
         initializeOracleRelayer();
         initializeAccountingEngine();
-
+        initializeSurplusAuctionHouse();
+        initializeDebtAuctionHouse();
 
         console2.log("Deployed SAFEEngine at address: ", address(safeEngine));
         console2.log("Deployed TaxCollector at address: ", address(taxCollector));
