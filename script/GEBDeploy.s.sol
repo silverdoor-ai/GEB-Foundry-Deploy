@@ -24,8 +24,9 @@ import {OracleRelayer} from "geb/OracleRelayer.sol";
 import {DSValue} from "ds-value/value.sol";
 
 import {TestToken} from "src/mocks/TestToken.sol";
+import {Parameters} from "./parameters.s.sol";
 
-contract GEBDeploy is Script {
+contract GEBDeploy is Script, Parameters {
 
     SAFEEngine                        public safeEngine;
     TaxCollector                      public taxCollector;
@@ -50,7 +51,7 @@ contract GEBDeploy is Script {
     DSValue                           public oracle;
     DSAuthority                       public authority;
 
-    bytes32 public collateralBytes32 = bytes32("TestToken");
+    bytes32 public collateralTypeBytes32 = bytes32("TestToken");
 
     uint256 chainId;
 
@@ -61,6 +62,41 @@ contract GEBDeploy is Script {
     string public protocolCoinSymbol = vm.envString("PROTOCOL_COIN_SYMBOL");
 
     bytes32 public mockCollateralType = bytes32("MockERC20");
+
+    SAFEEngine.CollateralType public safeCollateralType;
+
+    function initializeSAFEEngine() public {
+        safeEngine.initializeCollateralType(collateralTypeBytes32);
+        safeEngine.modifyParameters(collateralTypeBytes32, safeCollateralSafetyPrice, .5 ether);
+        safeEngine.modifyParameters(collateralTypeBytes32, safeCollateralLiquidationPrice, .25 ether);
+        safeEngine.modifyParameters(collateralTypeBytes32, safeCollateralDebtCeiling, uint256(-1));
+        safeEngine.modifyParameters(collateralTypeBytes32, safeCollateralDebtFloor, 0);
+
+        safeEngine.modifyParameters(safeGlobalDebtCeiling, uint256(-1));
+    }
+
+    function initializeOracleRelayer() public {
+        oracleRelayer.modifyParameters(collateralTypeBytes32, relayerOracle, address(oracle));
+
+        oracleRelayer.modifyParameters(collateralTypeBytes32, relayerSafetyCRatio, 1.5 ether);
+    }
+
+    function initializeAccountingEngine() public {
+        accountingEngine.modifyParameters(accountingEngineExtraSurplusIsTransferred, 0);
+        accountingEngine.modifyParameters(accountingEngineSurplusAuctionDelay, 30);
+        accountingEngine.modifyParameters(accountingEnginePopDebtDelay, 30);
+        accountingEngine.modifyParameters(accountingEngineDisableCooldown, 30);
+        accountingEngine.modifyParameters(accountingEngineSurplusAuctionAmountToSell, 100 * RAD);
+        accountingEngine.modifyParameters(accountingEngineSurplusBuffer, 1000 * RAD);
+        accountingEngine.modifyParameters(accountingEngineDebtAuctionBidSize, 100 * RAD);
+        accountingEngine.modifyParameters(accountingEngineInitialDebtAuctionMintedTokens, 1000 * RAD);
+
+        accountingEngine.modifyParameters(accountingEngineSurplusAuctionHouse, address(recyclingSurplusAuctionHouse));
+        accountingEngine.modifyParameters(accountingEngineDebtAuctionHouse, address(debtAuctionHouse));
+        accountingEngine.modifyParameters(accountingEnginePostSettlementSurplusDrain, address(this));
+        accountingEngine.modifyParameters(accountingEngineProtocolTokenAuthority, address(authority));
+        accountingEngine.modifyParameters(accountingEngineExtraSurplusReceiver, address(this));
+    }
 
     function run() public {
         uint256 privKey = vm.envUint("PRIVATE_KEY");
@@ -119,7 +155,7 @@ contract GEBDeploy is Script {
         coinJoin = new CoinJoin(address(safeEngine), address(coin));
         coin.addAuthorization(address(coinJoin));
 
-        basicCollateralJoin = new BasicCollateralJoin(address(safeEngine), collateralBytes32, address(testToken));
+        basicCollateralJoin = new BasicCollateralJoin(address(safeEngine), collateralTypeBytes32, address(testToken));
 
         stabilityFeeTreasury = new StabilityFeeTreasury(address(safeEngine), msg.sender, address(coinJoin));
         globalSettlement.modifyParameters("stabilityFeeTreasury", address(stabilityFeeTreasury));
@@ -152,6 +188,12 @@ contract GEBDeploy is Script {
 
         pause = new DSPause(uint256(12), address(msg.sender), authority);
         protestPause = new DSProtestPause(uint256(12), uint256(12), msg.sender, authority);
+
+        // finish initialization of SAFEEngine
+        initializeSAFEEngine();
+        initializeOracleRelayer();
+        initializeAccountingEngine();
+
 
         console2.log("Deployed SAFEEngine at address: ", address(safeEngine));
         console2.log("Deployed TaxCollector at address: ", address(taxCollector));
