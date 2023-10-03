@@ -17,7 +17,7 @@ contract Parameters {
     /// @dev Uint256 representation of 1 hour in seconds
     uint256 constant HOUR = 3600;
 
-    // Safe Engine params
+    // Safe Engine params ///////////////////////////////////////////////
     // Params for collateral
     bytes32 public safeCollateralSafetyPrice = "safetyPrice";
     bytes32 public safeCollateralLiquidationPrice = "liquidationPrice";
@@ -28,7 +28,7 @@ contract Parameters {
     bytes32 public safeGlobalDebtCeiling = "globalDebtCeiling";
     bytes32 public safeSafeDebtCeiling = "safeDebtCeiling";
 
-    // Oracle Relayer params
+    // Oracle Relayer params ///////////////////////////////////////////////
     // Params for setting collateral oracle address
     bytes32 public relayerOracle = "orcl";
 
@@ -43,7 +43,7 @@ contract Parameters {
     bytes32 public relayerRedemptionRateUpperBound = "redemptionRateUpperBound";
     bytes32 public relayerRedemptionRateLowerBound = "redemptionRateLowerBound";
 
-    // Accounting Engine params
+    // Accounting Engine params ///////////////////////////////////////////////
     // Uint256
     bytes32 public accountingEngineSurplusAuctionDelay = "surplusAuctionDelay";
     bytes32 public accountingEngineSurplusTransferDelay = "surplusTransferDelay";
@@ -65,7 +65,7 @@ contract Parameters {
     bytes32 public accountingEngineProtocolTokenAuthority = "protocolTokenAuthority";
     bytes32 public accountingEngineExtraSurplusReceiver = "extraSurplusReceiver";
 
-    // Surplus Auction house params
+    // Surplus Auction house params ///////////////////////////////////////////////
     // uint256
     bytes32 public surplusAuctionHouseBidIncrease = "bidIncrease";
     bytes32 public surplusAuctionHouseBidDuration = "bidDuration";
@@ -74,7 +74,7 @@ contract Parameters {
     // address
     bytes32 public surplusAuctionHouseProtocolTokenBidReceiver = "protocolTokenBidReceiver";
 
-    // Debt Auction house params
+    // Debt Auction house params ///////////////////////////////////////////////
     // uint256
     bytes32 public debtAuctionHouseBidDecrease = "bidDecrease";
     bytes32 public debtAuctionHouseAmountSoldIncrease = "amountSoldIncrease";
@@ -84,4 +84,40 @@ contract Parameters {
     // address
     bytes32 public debtAuctionHouseProtocolToken = "protocolToken";
     bytes32 public debtAuctionHouseAccountingEngine = "accountingEngine";
+
+    // Liquidation Engine params ///////////////////////////////////////////////
+    // uint256
+    bytes32 public liquidationEngineOnAuctionSystemCoinLimit = "onAuctionSystemCoinLimit";
+
+    // address
+    bytes32 public liquidationEngineAccountingEngine = "accountingEngine";
+
+    // uint256 collateral
+    bytes32 public liquidationEngineLiquidationPenalty = "liquidationPenalty";
+    bytes32 public liquidationEngineLiquidationQuantity = "liquidationQuantity";
+
+    // address collateral
+    bytes32 public liquidationEngineCollateralAuctionHouse = "collateralAuctionHouse";
+
+    // Stability Fee Treasury params ///////////////////////////////////////////////
+    // uint256
+    bytes32 public stabilityFeeTreasuryExpensesMultiplier = "expensesMultiplier";
+    bytes32 public stabilityFeeTreasuryTreasuryCapacity = "treasuryCapacity";
+    bytes32 public stabilityFeeTreasuryMinimumFundsRequired = "minimumFundsRequired";
+    bytes32 public stabilityFeeTreasuryPullFundsMinThreshold = "pullFundsMinThreshold";
+    bytes32 public stabilityFeeTreasurySurplusTransferDelay = "surplusTransferDelay";
+
+    // address
+    bytes32 public stabilityFeeTreasuryExtraSurplusReceiver = "extraSurplusReceiver";
+
+    // Tax Collector params ///////////////////////////////////////////////
+    // uint256
+    bytes32 public taxCollectorGlobalStabilityFee = "globalStabilityFee";
+    bytes32 public taxCollectorMaxSecondaryReceivers = "maxSecondaryReceivers";
+
+    // address
+    bytes32 public taxCollectorPrimaryTaxReceiver = "primaryTaxReceiver";
+
+    // collateral
+    bytes32 public taxCollectorStabilityFee = "stabilityFee";
 }

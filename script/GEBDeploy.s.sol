@@ -115,6 +115,48 @@ contract GEBDeploy is Script, Parameters {
         accountingEngine.modifyParameters(accountingEngineExtraSurplusReceiver, address(this));
     }
 
+    function initializeLiquidationEngine() public {
+        liquidationEngine.modifyParameters(liquidationEngineOnAuctionSystemCoinLimit, 500_000 * RAD);
+        liquidationEngine.modifyParameters(liquidationEngineAccountingEngine, address(accountingEngine));
+
+        liquidationEngine.modifyParameters(collateralTypeBytes32, liquidationEngineLiquidationPenalty, 0.1 ether);
+        liquidationEngine.modifyParameters(collateralTypeBytes32, liquidationEngineLiquidationQuantity, 100 * RAD);
+
+        liquidationEngine.modifyParameters(
+            collateralTypeBytes32,
+            liquidationEngineCollateralAuctionHouse,
+            address(englishCollateralAuctionHouse));
+    }
+
+    function initializeStabilityFeeTreasury() public {
+        stabilityFeeTreasury.modifyParameters(stabilityFeeTreasuryExpensesMultiplier, 98);
+        stabilityFeeTreasury.modifyParameters(stabilityFeeTreasuryTreasuryCapacity, 1_000_000e45);
+        stabilityFeeTreasury.modifyParameters(stabilityFeeTreasuryMinimumFundsRequired, 100 ether);
+        stabilityFeeTreasury.modifyParameters(stabilityFeeTreasuryPullFundsMinThreshold, 0);
+        stabilityFeeTreasury.modifyParameters(stabilityFeeTreasurySurplusTransferDelay, 60);
+
+        stabilityFeeTreasury.modifyParameters(stabilityFeeTreasuryExtraSurplusReceiver, address(this));
+    }
+
+    function initializeTaxCollector() public {
+        taxCollector.initializeCollateralType(collateralTypeBytes32);
+
+        taxCollector.modifyParameters(collateralTypeBytes32, taxCollectorStabilityFee, RAY);
+
+        taxCollector.modifyParameters(taxCollectorGlobalStabilityFee, RAY);
+        taxCollector.modifyParameters(taxCollectorMaxSecondaryReceivers, 2);
+    }
+
+    function initializeGlobalSettlement() public {
+        globalSettlement.modifyParameters("safeEngine", address(safeEngine));
+        globalSettlement.modifyParameters("liquidationEngine", address(liquidationEngine));
+        globalSettlement.modifyParameters("accountingEngine", address(accountingEngine));
+        globalSettlement.modifyParameters("oracleRelayer", address(oracleRelayer));
+        globalSettlement.modifyParameters("coinSavingsAccount", address(coinSavingsAccount));
+        globalSettlement.modifyParameters("stabilityFeeTreasury", address(stabilityFeeTreasury));
+
+    }
+
     function run() public {
         uint256 privKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.rememberKey(privKey);
@@ -159,9 +201,6 @@ contract GEBDeploy is Script, Parameters {
         );
 
         globalSettlement = new GlobalSettlement();
-        globalSettlement.modifyParameters("safeEngine", address(safeEngine));
-        globalSettlement.modifyParameters("liquidationEngine", address(liquidationEngine));
-        globalSettlement.modifyParameters("accountingEngine", address(accountingEngine));
         safeEngine.addAuthorization(address(globalSettlement));
         liquidationEngine.addAuthorization(address(globalSettlement));
         accountingEngine.addAuthorization(address(globalSettlement));
@@ -175,21 +214,17 @@ contract GEBDeploy is Script, Parameters {
         basicCollateralJoin = new BasicCollateralJoin(address(safeEngine), collateralTypeBytes32, address(testToken));
 
         stabilityFeeTreasury = new StabilityFeeTreasury(address(safeEngine), msg.sender, address(coinJoin));
-        globalSettlement.modifyParameters("stabilityFeeTreasury", address(stabilityFeeTreasury));
         stabilityFeeTreasury.addAuthorization(address(globalSettlement));
 
         oracleRelayer = new OracleRelayer(address(safeEngine));
         safeEngine.addAuthorization(address(oracleRelayer));
-        globalSettlement.modifyParameters("oracleRelayer", address(oracleRelayer));
         oracleRelayer.addAuthorization(address(globalSettlement));
 
         taxCollector = new TaxCollector(address(safeEngine));
         safeEngine.addAuthorization(address(taxCollector));
-        taxCollector.modifyParameters("primaryTaxReceiver", address(accountingEngine));
 
         coinSavingsAccount = new CoinSavingsAccount(address(safeEngine));
         safeEngine.addAuthorization(address(coinSavingsAccount));
-        globalSettlement.modifyParameters("coinSavingsAccount", address(coinSavingsAccount));
         coinSavingsAccount.addAuthorization(address(globalSettlement));
 
         oracle = new DSValue();
@@ -210,8 +245,12 @@ contract GEBDeploy is Script, Parameters {
         initializeSAFEEngine();
         initializeOracleRelayer();
         initializeAccountingEngine();
-        initializeSurplusAuctionHouse();
         initializeDebtAuctionHouse();
+        initializeSurplusAuctionHouse();
+        initializeLiquidationEngine();
+        initializeStabilityFeeTreasury();
+        initializeTaxCollector();
+        initializeGlobalSettlement();
 
         console2.log("Deployed SAFEEngine at address: ", address(safeEngine));
         console2.log("Deployed TaxCollector at address: ", address(taxCollector));
