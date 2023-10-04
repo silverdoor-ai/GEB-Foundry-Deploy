@@ -309,7 +309,7 @@ contract GEBDeploy is Script, Parameters {
         console2.log("Deployed DSPause at address: ", address(pause));
         console2.log("Deployed DSProtestPause at address: ", address(protestPause));
         console2.log("Deployed DSDelegateToken Protocol Token at address: ", address(protocolToken));
-        console2.log("Deployed ProtocolTokenAuthority at address: ", address(protocolTokenAuthority);
+        console2.log("Deployed ProtocolTokenAuthority at address: ", address(protocolTokenAuthority));
         console2.log("Deployed EnglishCollateralAuctionHouse at address: ", address(englishCollateralAuctionHouse));
         console2.log("Deployed TestToken at address: ", address(testToken));
         console2.log("Deployed DSValue at address: ", address(oracle));
