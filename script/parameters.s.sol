@@ -17,6 +17,14 @@ contract Parameters {
     /// @dev Uint256 representation of 1 hour in seconds
     uint256 constant HOUR = 3600;
 
+    // Token Authority Params
+    // bytes4(keccak256(abi.encodePacked('burn(uint256)')))
+    bytes4 constant BURN = bytes4(0x42966c68);
+    // bytes4(keccak256(abi.encodePacked('burn(address,uint256)')))
+    bytes4 constant BURNFROM = bytes4(0x9dc29fac);
+    // bytes4(keccak256(abi.encodePacked('mint(address,uint256)')))
+    bytes4 constant MINT = bytes4(0x40c10f19);
+
     // Safe Engine params ///////////////////////////////////////////////
     // Params for collateral
     bytes32 public safeCollateralSafetyPrice = "safetyPrice";

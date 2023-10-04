@@ -2,10 +2,13 @@
 pragma solidity ^0.6.7;
 
 import "forge-std/Script.sol";
+import {ProtocolTokenAuthority} from "src/ProtocolTokenAuthority.sol";
 import {DSAuth, DSAuthority} from "ds-auth/auth.sol";
 import {DSPause, DSPauseProxy} from "ds-pause/pause.sol";
 import {DSProtestPause} from "ds-pause/protest-pause.sol";
 import {DSDelegateToken} from "ds-token/delegate.sol";
+import {DSProxy, DSProxyFactory} from "src/DSProxy.sol";
+import {GebProxyRegistry} from "src/GebProxyRegistry.sol";
 
 import {SAFEEngine} from "geb/SAFEEngine.sol";
 import {TaxCollector} from "geb/TaxCollector.sol";
@@ -49,6 +52,9 @@ contract GEBDeploy is Script, Parameters {
     TestToken                         public testToken;
     DSValue                           public oracle;
     DSAuthority                       public authority;
+    ProtocolTokenAuthority            public protocolTokenAuthority;
+    DSProxyFactory                    public proxyFactory;
+    GebProxyRegistry                  public proxyRegistry;
 
     bytes32 public collateralTypeBytes32 = bytes32("TestToken");
 
@@ -76,8 +82,16 @@ contract GEBDeploy is Script, Parameters {
 
     function initializeOracleRelayer() public {
         oracleRelayer.modifyParameters(collateralTypeBytes32, relayerOracle, address(oracle));
+        oracleRelayer.modifyParameters(collateralTypeBytes32, relayerSafetyCRatio, 1.5e27); // 150%
+        oracleRelayer.modifyParameters(collateralTypeBytes32, relayerLiquidationCRatio, 1.25e27); // 125%
+        oracleRelayer.modifyParameters(relayerRedemptionPrice, RAY);
+        oracleRelayer.modifyParameters(relayerRedemptionRate, RAY);
+        oracleRelayer.modifyParameters(relayerRedemptionRateUpperBound, RAY * WAD);
+        oracleRelayer.modifyParameters(relayerRedemptionRateLowerBound, 1);
+    }
 
-        oracleRelayer.modifyParameters(collateralTypeBytes32, relayerSafetyCRatio, 1.5 ether);
+    function initializeOracle() public {
+        oracle.updateResult(1 ether);
     }
 
     function initializeSurplusAuctionHouse() public {
@@ -106,21 +120,28 @@ contract GEBDeploy is Script, Parameters {
         accountingEngine.modifyParameters(accountingEngineSurplusAuctionAmountToSell, 100 * RAD);
         accountingEngine.modifyParameters(accountingEngineSurplusBuffer, 1000 * RAD);
         accountingEngine.modifyParameters(accountingEngineDebtAuctionBidSize, 100 * RAD);
-        accountingEngine.modifyParameters(accountingEngineInitialDebtAuctionMintedTokens, 1000 * RAD);
+        accountingEngine.modifyParameters(accountingEngineInitialDebtAuctionMintedTokens, 1 ether);
 
         accountingEngine.modifyParameters(accountingEngineSurplusAuctionHouse, address(recyclingSurplusAuctionHouse));
         accountingEngine.modifyParameters(accountingEngineDebtAuctionHouse, address(debtAuctionHouse));
         accountingEngine.modifyParameters(accountingEnginePostSettlementSurplusDrain, address(this));
-        accountingEngine.modifyParameters(accountingEngineProtocolTokenAuthority, address(authority));
+        accountingEngine.modifyParameters(accountingEngineProtocolTokenAuthority, address(protocolTokenAuthority));
         accountingEngine.modifyParameters(accountingEngineExtraSurplusReceiver, address(this));
+    }
+
+    function initializeCollateralAuctionHouse() public {
+        englishCollateralAuctionHouse.modifyParameters("liquidationEngine", address(liquidationEngine));
+        englishCollateralAuctionHouse.modifyParameters("bidIncrease", 1 ether);
+        englishCollateralAuctionHouse.modifyParameters("bidDuration", 5 minutes);
+        englishCollateralAuctionHouse.modifyParameters("totalAuctionLength", 10 minutes);
     }
 
     function initializeLiquidationEngine() public {
         liquidationEngine.modifyParameters(liquidationEngineOnAuctionSystemCoinLimit, 500_000 * RAD);
         liquidationEngine.modifyParameters(liquidationEngineAccountingEngine, address(accountingEngine));
 
-        liquidationEngine.modifyParameters(collateralTypeBytes32, liquidationEngineLiquidationPenalty, 0.1 ether);
-        liquidationEngine.modifyParameters(collateralTypeBytes32, liquidationEngineLiquidationQuantity, 100 * RAD);
+        liquidationEngine.modifyParameters(collateralTypeBytes32, liquidationEngineLiquidationPenalty, 1.1E18);
+        liquidationEngine.modifyParameters(collateralTypeBytes32, liquidationEngineLiquidationQuantity, 1000 * RAD);
 
         liquidationEngine.modifyParameters(
             collateralTypeBytes32,
@@ -157,6 +178,29 @@ contract GEBDeploy is Script, Parameters {
 
     }
 
+    function authorizeGlobalSettlement() public {
+        safeEngine.addAuthorization(address(globalSettlement));
+        liquidationEngine.addAuthorization(address(globalSettlement));
+        stabilityFeeTreasury.addAuthorization(address(globalSettlement));
+        accountingEngine.addAuthorization(address(globalSettlement));
+        oracleRelayer.addAuthorization(address(globalSettlement));
+        coinJoin.addAuthorization(address(globalSettlement));
+    }
+
+    function authorizeContracts() public {
+        safeEngine.addAuthorization(address(oracleRelayer)); // modifyParameters
+        safeEngine.addAuthorization(address(coinJoin)); // transferInternalCoins
+        safeEngine.addAuthorization(address(taxCollector)); // updateAccumulatedRate
+        safeEngine.addAuthorization(address(debtAuctionHouse)); // transferInternalCoins [createUnbackedDebt]
+        safeEngine.addAuthorization(address(liquidationEngine)); // confiscateSAFECollateralAndDebt
+        recyclingSurplusAuctionHouse.addAuthorization(address(accountingEngine)); // startAuction
+        debtAuctionHouse.addAuthorization(address(accountingEngine)); // startAuction
+        accountingEngine.addAuthorization(address(liquidationEngine)); // pushDebtToQueue
+        protocolTokenAuthority.addAuthorization(address(debtAuctionHouse));
+        protocolToken.setAuthority(DSAuthority(address(protocolTokenAuthority))); // mint
+        coin.addAuthorization(address(coinJoin)); // mint
+    }
+
     function run() public {
         uint256 privKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.rememberKey(privKey);
@@ -168,10 +212,12 @@ contract GEBDeploy is Script, Parameters {
         }
         chainId = id;
 
+        proxyFactory = new DSProxyFactory();
+        proxyRegistry = new GebProxyRegistry(address(proxyFactory));
+
         safeEngine = new SAFEEngine();
 
         liquidationEngine = new LiquidationEngine(address(safeEngine));
-        safeEngine.addAuthorization(address(liquidationEngine));
 
         protocolToken = new DSDelegateToken(protocolTokenName, protocolTokenSymbol);
         protocolToken.mint(10_000_000 ether);
@@ -181,18 +227,13 @@ contract GEBDeploy is Script, Parameters {
         recyclingSurplusAuctionHouse = new RecyclingSurplusAuctionHouse(address(safeEngine), address(protocolToken));
 
         debtAuctionHouse = new DebtAuctionHouse(address(safeEngine), address(protocolToken));
-        safeEngine.addAuthorization(address(debtAuctionHouse));
 
         accountingEngine = new AccountingEngine(
             address(safeEngine),
             address(recyclingSurplusAuctionHouse),
             address(debtAuctionHouse)
         );
-        debtAuctionHouse.modifyParameters("accountingEngine", address(accountingEngine));
         recyclingSurplusAuctionHouse.addAuthorization(address(accountingEngine));
-        debtAuctionHouse.addAuthorization(address(accountingEngine));
-        liquidationEngine.modifyParameters("accountingEngine", address(accountingEngine));
-        accountingEngine.addAuthorization(address(liquidationEngine));
 
         englishCollateralAuctionHouse = new EnglishCollateralAuctionHouse(
             address(safeEngine),
@@ -201,9 +242,6 @@ contract GEBDeploy is Script, Parameters {
         );
 
         globalSettlement = new GlobalSettlement();
-        safeEngine.addAuthorization(address(globalSettlement));
-        liquidationEngine.addAuthorization(address(globalSettlement));
-        accountingEngine.addAuthorization(address(globalSettlement));
 
         testToken = new TestToken("TestToken", "TT", chainId);
         testToken.mintTokensTo(msg.sender, 10_000_000 ether);
@@ -211,17 +249,15 @@ contract GEBDeploy is Script, Parameters {
         coinJoin = new CoinJoin(address(safeEngine), address(coin));
         coin.addAuthorization(address(coinJoin));
 
+        protocolTokenAuthority = new ProtocolTokenAuthority();
+
         basicCollateralJoin = new BasicCollateralJoin(address(safeEngine), collateralTypeBytes32, address(testToken));
 
         stabilityFeeTreasury = new StabilityFeeTreasury(address(safeEngine), msg.sender, address(coinJoin));
-        stabilityFeeTreasury.addAuthorization(address(globalSettlement));
 
         oracleRelayer = new OracleRelayer(address(safeEngine));
-        safeEngine.addAuthorization(address(oracleRelayer));
-        oracleRelayer.addAuthorization(address(globalSettlement));
 
         taxCollector = new TaxCollector(address(safeEngine));
-        safeEngine.addAuthorization(address(taxCollector));
 
         coinSavingsAccount = new CoinSavingsAccount(address(safeEngine));
         safeEngine.addAuthorization(address(coinSavingsAccount));
@@ -244,13 +280,17 @@ contract GEBDeploy is Script, Parameters {
         // finish initialization of SAFEEngine
         initializeSAFEEngine();
         initializeOracleRelayer();
+        initializeOracle();
         initializeAccountingEngine();
         initializeDebtAuctionHouse();
+        initializeCollateralAuctionHouse();
         initializeSurplusAuctionHouse();
         initializeLiquidationEngine();
         initializeStabilityFeeTreasury();
         initializeTaxCollector();
         initializeGlobalSettlement();
+        authorizeContracts();
+        authorizeGlobalSettlement();
 
         console2.log("Deployed SAFEEngine at address: ", address(safeEngine));
         console2.log("Deployed TaxCollector at address: ", address(taxCollector));
@@ -273,6 +313,8 @@ contract GEBDeploy is Script, Parameters {
         console2.log("Deployed TestToken at address: ", address(testToken));
         console2.log("Deployed DSValue at address: ", address(oracle));
         console2.log("Deployed MockERC20 at address: ", address(testToken));
+        console2.log("Deployed ProxyFactory at address: ", address(proxyFactory));
+        console2.log("Deployed GebProxyRegistry at address: ", address(proxyRegistry));
     }
 
     // deploy command for Sepolia
