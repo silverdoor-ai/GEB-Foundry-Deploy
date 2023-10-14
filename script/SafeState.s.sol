@@ -9,6 +9,7 @@ import {DSProtestPause} from "ds-pause/protest-pause.sol";
 import {DSDelegateToken} from "ds-token/delegate.sol";
 import {DSProxy, DSProxyFactory} from "src/DSProxy.sol";
 import {GebProxyRegistry} from "src/GebProxyRegistry.sol";
+import {GebSafeManager} from "src/GebSafeManager.sol";
 
 import {SAFEEngine} from "geb/SAFEEngine.sol";
 import {TaxCollector} from "geb/TaxCollector.sol";
@@ -55,11 +56,23 @@ contract SafeState is Script, Parameters {
     ProtocolTokenAuthority            public protocolTokenAuthority;
     DSProxyFactory                    public proxyFactory;
     GebProxyRegistry                  public gebProxyRegistry;
+    GebSafeManager                    public safeManager;
 
+    string public mnemonic;
+    address[] public publicKeys;
+    uint256[] public privateKeys;
     uint256 chainId;
 
     function deployProxy(address owner) public returns (address proxy) {
         proxy = gebProxyRegistry.build(owner);
+    }
+
+    function deriveKeys() public {
+        for (uint32 i = 0; i < 10; i++) {
+            (address publicKey, uint256 privateKey) = deriveRememberKey(mnemonic, i);
+            publicKeys.push(publicKey);
+            privateKeys.push(privateKey);
+        }
     }
 
     function run() public {
@@ -72,6 +85,9 @@ contract SafeState is Script, Parameters {
             id := chainid()
         }
         chainId = id;
+
+        mnemonic = vm.envString("MNEMONIC");
+        deriveKeys();
 
         safeEngine = SAFEEngine(vm.envAddress("SAFEENGINE"));
         taxCollector = TaxCollector(vm.envAddress("TAXCOLLECTOR"));
@@ -96,7 +112,7 @@ contract SafeState is Script, Parameters {
         protocolTokenAuthority = ProtocolTokenAuthority(vm.envAddress("PROTOCOLTOKENAUTHORITY"));
         proxyFactory = DSProxyFactory(vm.envAddress("PROXYFACTORY"));
         gebProxyRegistry = GebProxyRegistry(vm.envAddress("GEBPROXYREGISTRY"));
-
+        safeManager = GebSafeManager(vm.envAddress("GEBSAFEMANAGER"));
     }
 
 }
