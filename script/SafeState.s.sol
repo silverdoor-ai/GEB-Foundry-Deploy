@@ -58,9 +58,13 @@ contract SafeState is Script, Parameters {
     GebProxyRegistry                  public gebProxyRegistry;
     GebSafeManager                    public safeManager;
 
+    bool testRun;
+    string RPC_URL;
+    address deployer;
     string public mnemonic;
     address[] public publicKeys;
     uint256[] public privateKeys;
+    DSProxy[] public proxies;
     uint256 chainId;
 
     function deployProxy(address owner) public returns (address proxy) {
@@ -75,20 +79,22 @@ contract SafeState is Script, Parameters {
         }
     }
 
-    function run() public {
-        uint256 privKey = vm.envUint("PRIVATE_KEY");
-        address deployer = vm.rememberKey(privKey);
-        vm.startBroadcast(deployer);
-
-        uint256 id;
-        assembly {
-            id := chainid()
+    function deployProxies() public {
+        for (uint32 i = 0; i < publicKeys.length; i++) {
+            address userProxyAddress = deployProxy(publicKeys[i]);
+            DSProxy userProxy = DSProxy(payable(userProxyAddress));
+            proxies.push(userProxy);
         }
-        chainId = id;
+    }
 
-        mnemonic = vm.envString("MNEMONIC");
-        deriveKeys();
+    function dealAll() public {
+        for (uint32 i = 0; i < publicKeys.length; i++) {
+            vm.deal(publicKeys[i], 1 ether);
+        }
+        vm.deal(deployer, 1 ether);
+    }
 
+    function setEnvironment() public {
         safeEngine = SAFEEngine(vm.envAddress("SAFEENGINE"));
         taxCollector = TaxCollector(vm.envAddress("TAXCOLLECTOR"));
         accountingEngine = AccountingEngine(vm.envAddress("ACCOUNTINGENGINE"));
@@ -113,6 +119,35 @@ contract SafeState is Script, Parameters {
         proxyFactory = DSProxyFactory(vm.envAddress("PROXYFACTORY"));
         gebProxyRegistry = GebProxyRegistry(vm.envAddress("GEBPROXYREGISTRY"));
         safeManager = GebSafeManager(vm.envAddress("GEBSAFEMANAGER"));
+    }
+
+    function run() public {
+        RPC_URL = vm.envString("SEPOLIA_RPC");
+        mnemonic = vm.envString("MNEMONIC");
+        uint256 privKey = vm.envUint("PRIVATE_KEY");
+        deployer = vm.rememberKey(privKey);
+        setEnvironment();
+        deriveKeys();
+        if (testRun) {
+            console2.log(RPC_URL);
+            vm.createSelectFork(RPC_URL);
+            dealAll();
+        }
+        else {
+            vm.startBroadcast(deployer);
+        }
+
+        uint256 id;
+        assembly {
+            id := chainid()
+        }
+        chainId = id;
+
+        deployProxies();
+        if (testRun == false) {
+            vm.stopBroadcast();
+        }
+
     }
 
 }

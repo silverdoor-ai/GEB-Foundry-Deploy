@@ -8,6 +8,7 @@ contract SafeStateTest is SafeState {
 
     function setUp() public {
         didRun = true;
+        testRun = true;
     }
 
     function test() public {
