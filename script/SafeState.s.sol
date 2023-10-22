@@ -67,6 +67,7 @@ contract SafeState is Script, Parameters {
     address[] public publicKeys;
     uint256[] public privateKeys;
     DSProxy[] public proxies;
+    uint256[] public safeIds;
     uint256 chainId;
 
     bytes32 public collateralTypeBytes32 = bytes32("TestToken");
@@ -83,7 +84,7 @@ contract SafeState is Script, Parameters {
         if (testRun == false) {
             vm.startBroadcast(deployer);
             for (uint256 i; i < publicKeys.length; i++) {
-                uint256 userAmount = 10000 * i + 1 * 1 ether;
+                uint256 userAmount = 10000 * 1 ether * (i + 1);
                 mintTokens(publicKeys[i], userAmount);
             }
             vm.stopBroadcast();
@@ -91,7 +92,7 @@ contract SafeState is Script, Parameters {
         else {
             vm.startPrank(deployer);
             for (uint256 i; i < publicKeys.length; i++) {
-                uint256 userAmount = 10000 * i + 1 * 1 ether;
+                uint256 userAmount = 10000 * 1 ether * (i + 1 );
                 mintTokens(publicKeys[i], userAmount);
             }
             vm.stopPrank();
@@ -102,6 +103,7 @@ contract SafeState is Script, Parameters {
         if (testRun == false) {
             for (uint256 i; i < publicKeys.length; i++) {
                 vm.startBroadcast(publicKeys[i]);
+                testToken.approve(address(proxies[i]), uint256(-1));
                 testToken.approve(address(basicCollateralJoin), uint256(-1));
                 coin.approve(address(coinJoin), uint256(-1));
                 vm.stopBroadcast();
@@ -110,6 +112,7 @@ contract SafeState is Script, Parameters {
         else {
             for (uint256 i; i < publicKeys.length; i++) {
                 vm.startPrank(publicKeys[i]);
+                testToken.approve(address(proxies[i]), uint256(-1));
                 testToken.approve(address(basicCollateralJoin), uint256(-1));
                 testToken.approve(address(coinJoin), uint256(-1));
                 vm.stopPrank();
@@ -117,6 +120,7 @@ contract SafeState is Script, Parameters {
         }
     }
 
+    // note that the SafeIds from the GebSafeManager will correspond to the indices of the publicKeys array
     function openSafe(address owner, DSProxy proxy, uint256 collateralAmount, uint256 deltaWad) public {
         vm.startBroadcast(owner);
         bytes memory data = abi.encodeWithSelector(
@@ -124,7 +128,9 @@ contract SafeState is Script, Parameters {
             address(safeManager),
             address(taxCollector),
             address(basicCollateralJoin),
+            address(coinJoin),
             collateralTypeBytes32,
+            collateralAmount,
             deltaWad,
             owner
         );
@@ -139,10 +145,13 @@ contract SafeState is Script, Parameters {
             address(safeManager),
             address(taxCollector),
             address(basicCollateralJoin),
+            address(coinJoin),
             collateralTypeBytes32,
             deltaWad,
+            collateralAmount,
             owner
         );
+        console2.log(address(proxy));
         proxy.execute(address(proxyActions), data);
         vm.stopPrank();
     }
@@ -150,14 +159,14 @@ contract SafeState is Script, Parameters {
     function openAllSafes() public {
         if (testRun == false) {
             for (uint32 i = 0; i < publicKeys.length; i++) {
-                uint256 userAmount = 10000 * i + 1 * 1 ether;
+                uint256 userAmount = 10000 * 1 ether * (i + 1 );
                 uint256 userDelta = userAmount / 2;
                 openSafe(publicKeys[i], proxies[i], userAmount, userDelta);
             }
         }
         else {
             for (uint32 i = 0; i < publicKeys.length; i++) {
-                uint256 userAmount = 10000 * i + 1 * 1 ether;
+                uint256 userAmount = 10000 * 1 ether * (i + 1 );
                 uint256 userDelta = userAmount / 2;
                 openSafeTest(publicKeys[i], proxies[i], userAmount, userDelta);
             }
@@ -236,11 +245,18 @@ contract SafeState is Script, Parameters {
         }
         chainId = id;
 
+        taxCollector.taxSingle(collateralTypeBytes32);
+
         deployProxies();
+        mintAllTokens();
+        setApprovals();
+        openAllSafes();
         if (testRun == false) {
             vm.stopBroadcast();
         }
 
     }
+
+    // forge script script/GEBDeploy.s.sol:GEBDeploy -f sepolia --broadcast --verify
 
 }

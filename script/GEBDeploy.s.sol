@@ -72,8 +72,8 @@ contract GEBDeploy is Script, Parameters {
 
     function initializeSAFEEngine() public {
         safeEngine.initializeCollateralType(collateralTypeBytes32);
-        safeEngine.modifyParameters(collateralTypeBytes32, safeCollateralSafetyPrice, .5 ether);
-        safeEngine.modifyParameters(collateralTypeBytes32, safeCollateralLiquidationPrice, .25 ether);
+        safeEngine.modifyParameters(collateralTypeBytes32, safeCollateralSafetyPrice, 10 ** 27 * 10000 ether);
+        safeEngine.modifyParameters(collateralTypeBytes32, safeCollateralLiquidationPrice, 10 ** 27 * 5000 ether);
         safeEngine.modifyParameters(collateralTypeBytes32, safeCollateralDebtCeiling, uint256(-1));
         safeEngine.modifyParameters(collateralTypeBytes32, safeCollateralDebtFloor, 0);
 
@@ -175,7 +175,6 @@ contract GEBDeploy is Script, Parameters {
         globalSettlement.modifyParameters("oracleRelayer", address(oracleRelayer));
         globalSettlement.modifyParameters("coinSavingsAccount", address(coinSavingsAccount));
         globalSettlement.modifyParameters("stabilityFeeTreasury", address(stabilityFeeTreasury));
-
     }
 
     function authorizeGlobalSettlement() public {
@@ -199,6 +198,8 @@ contract GEBDeploy is Script, Parameters {
         protocolTokenAuthority.addAuthorization(address(debtAuctionHouse));
         protocolToken.setAuthority(DSAuthority(address(protocolTokenAuthority))); // mint
         coin.addAuthorization(address(coinJoin)); // mint
+        safeEngine.addAuthorization(address(basicCollateralJoin));
+        safeEngine.addAuthorization(address(coinJoin));
     }
 
     function run() public {
