@@ -10,6 +10,7 @@ import {DSDelegateToken} from "ds-token/delegate.sol";
 import {DSProxy, DSProxyFactory} from "src/DSProxy.sol";
 import {GebProxyRegistry} from "src/GebProxyRegistry.sol";
 import {GebSafeManager} from "src/GebSafeManager.sol";
+import {GebProxyActions} from "src/GebProxyActions.sol";
 
 import {SAFEEngine} from "geb/SAFEEngine.sol";
 import {TaxCollector} from "geb/TaxCollector.sol";
@@ -57,6 +58,7 @@ contract SafeState is Script, Parameters {
     DSProxyFactory                    public proxyFactory;
     GebProxyRegistry                  public gebProxyRegistry;
     GebSafeManager                    public safeManager;
+    GebProxyActions                   public proxyActions;
 
     bool testRun;
     string RPC_URL;
@@ -67,8 +69,99 @@ contract SafeState is Script, Parameters {
     DSProxy[] public proxies;
     uint256 chainId;
 
+    bytes32 public collateralTypeBytes32 = bytes32("TestToken");
+
     function deployProxy(address owner) public returns (address proxy) {
         proxy = gebProxyRegistry.build(owner);
+    }
+
+    function mintTokens(address user, uint256 amount) public {
+        testToken.mint(user, amount);
+    }
+
+    function mintAllTokens() public {
+        if (testRun == false) {
+            vm.startBroadcast(deployer);
+            for (uint256 i; i < publicKeys.length; i++) {
+                uint256 userAmount = 10000 * i + 1 * 1 ether;
+                mintTokens(publicKeys[i], userAmount);
+            }
+            vm.stopBroadcast();
+        }
+        else {
+            vm.startPrank(deployer);
+            for (uint256 i; i < publicKeys.length; i++) {
+                uint256 userAmount = 10000 * i + 1 * 1 ether;
+                mintTokens(publicKeys[i], userAmount);
+            }
+            vm.stopPrank();
+        }
+    }
+
+    function setApprovals() public {
+        if (testRun == false) {
+            for (uint256 i; i < publicKeys.length; i++) {
+                vm.startBroadcast(publicKeys[i]);
+                testToken.approve(address(basicCollateralJoin), uint256(-1));
+                coin.approve(address(coinJoin), uint256(-1));
+                vm.stopBroadcast();
+            }
+        }
+        else {
+            for (uint256 i; i < publicKeys.length; i++) {
+                vm.startPrank(publicKeys[i]);
+                testToken.approve(address(basicCollateralJoin), uint256(-1));
+                testToken.approve(address(coinJoin), uint256(-1));
+                vm.stopPrank();
+            }
+        }
+    }
+
+    function openSafe(address owner, DSProxy proxy, uint256 collateralAmount, uint256 deltaWad) public {
+        vm.startBroadcast(owner);
+        bytes memory data = abi.encodeWithSelector(
+            proxyActions.openLockTokenCollateralAndGenerateDebt.selector,
+            address(safeManager),
+            address(taxCollector),
+            address(basicCollateralJoin),
+            collateralTypeBytes32,
+            deltaWad,
+            owner
+        );
+        proxy.execute(address(proxyActions), data);
+        vm.stopBroadcast();
+    }
+
+    function openSafeTest(address owner, DSProxy proxy, uint256 collateralAmount, uint256 deltaWad) public {
+        vm.startPrank(owner);
+        bytes memory data = abi.encodeWithSelector(
+            proxyActions.openLockTokenCollateralAndGenerateDebt.selector,
+            address(safeManager),
+            address(taxCollector),
+            address(basicCollateralJoin),
+            collateralTypeBytes32,
+            deltaWad,
+            owner
+        );
+        proxy.execute(address(proxyActions), data);
+        vm.stopPrank();
+    }
+
+    function openAllSafes() public {
+        if (testRun == false) {
+            for (uint32 i = 0; i < publicKeys.length; i++) {
+                uint256 userAmount = 10000 * i + 1 * 1 ether;
+                uint256 userDelta = userAmount / 2;
+                openSafe(publicKeys[i], proxies[i], userAmount, userDelta);
+            }
+        }
+        else {
+            for (uint32 i = 0; i < publicKeys.length; i++) {
+                uint256 userAmount = 10000 * i + 1 * 1 ether;
+                uint256 userDelta = userAmount / 2;
+                openSafeTest(publicKeys[i], proxies[i], userAmount, userDelta);
+            }
+        }
     }
 
     function deriveKeys() public {
@@ -119,6 +212,7 @@ contract SafeState is Script, Parameters {
         proxyFactory = DSProxyFactory(vm.envAddress("PROXYFACTORY"));
         gebProxyRegistry = GebProxyRegistry(vm.envAddress("GEBPROXYREGISTRY"));
         safeManager = GebSafeManager(vm.envAddress("GEBSAFEMANAGER"));
+        proxyActions = GebProxyActions(vm.envAddress("GEBPROXYACTIONS"));
     }
 
     function run() public {
@@ -129,7 +223,6 @@ contract SafeState is Script, Parameters {
         setEnvironment();
         deriveKeys();
         if (testRun) {
-            console2.log(RPC_URL);
             vm.createSelectFork(RPC_URL);
             dealAll();
         }
