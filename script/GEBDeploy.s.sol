@@ -26,6 +26,7 @@ import {CoinSavingsAccount} from "geb/CoinSavingsAccount.sol";
 import {OracleRelayer} from "geb/OracleRelayer.sol";
 import {DSValue} from "ds-value/value.sol";
 
+import {ThresholdSetter} from "src/mocks/ThresholdSetter.sol";
 import {TestToken} from "src/mocks/TestToken.sol";
 import {Parameters} from "./parameters.s.sol";
 
@@ -55,6 +56,7 @@ contract GEBDeploy is Script, Parameters {
     ProtocolTokenAuthority            public protocolTokenAuthority;
     DSProxyFactory                    public proxyFactory;
     GebProxyRegistry                  public proxyRegistry;
+    ThresholdSetter                   public thresholdSetter;
 
     bytes32 public collateralTypeBytes32 = bytes32("TestToken");
 
@@ -211,6 +213,8 @@ contract GEBDeploy is Script, Parameters {
         }
         chainId = id;
 
+        thresholdSetter = new ThresholdSetter();
+
         proxyFactory = new DSProxyFactory();
         proxyRegistry = new GebProxyRegistry(address(proxyFactory));
 
@@ -267,8 +271,8 @@ contract GEBDeploy is Script, Parameters {
         esm = new ESM(
             address(protocolToken),
             address(globalSettlement),
-            address(msg.sender),
-            address(msg.sender),
+            msg.sender,
+            address(thresholdSetter),
             1_000_000 ether
         );
         globalSettlement.addAuthorization(address(esm));

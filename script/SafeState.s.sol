@@ -232,7 +232,7 @@ contract SafeState is Script, Parameters {
         setEnvironment();
         deriveKeys();
         if (testRun) {
-            vm.createSelectFork(RPC_URL);
+            vm.createSelectFork(RPC_URL, 4538157);
             dealAll();
         }
         else {
@@ -246,7 +246,9 @@ contract SafeState is Script, Parameters {
         chainId = id;
 
         deployProxies();
-        vm.stopBroadcast();
+        if (testRun == false) {
+            vm.stopBroadcast();
+        }
         mintAllTokens();
         setApprovals();
         openAllSafes();

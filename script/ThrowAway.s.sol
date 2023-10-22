@@ -3,11 +3,15 @@ pragma solidity >=0.6.7;
 import "forge-std/Script.sol";
 import { SAFEEngine } from "geb/SAFEEngine.sol";
 import { TaxCollector } from "geb/TaxCollector.sol";
+import { ThresholdSetter } from "src/mocks/ThresholdSetter.sol";
+import { ESM } from "esm/ESM.sol";
 
 contract ThrowAway is Script {
 
     SAFEEngine public safeEngine;
     TaxCollector public taxCollector;
+    ThresholdSetter public thresholdSetter;
+    ESM public esm;
     bool testRun;
     bytes32 public collateralTypeBytes32 = bytes32("TestToken");
     string public RPC_URL;
@@ -18,6 +22,7 @@ contract ThrowAway is Script {
         address deployer = vm.rememberKey(privKey);
         safeEngine = SAFEEngine(vm.envAddress("SAFEENGINE"));
         taxCollector = TaxCollector(vm.envAddress("TAXCOLLECTOR"));
+        esm = ESM(vm.envAddress("ESM"));
         if (testRun == false) {
             vm.startBroadcast(deployer);
         }
@@ -26,7 +31,8 @@ contract ThrowAway is Script {
             vm.startPrank(deployer);
             vm.deal(deployer, 100 ether);
         }
-        taxCollector.modifyParameters("globalStabilityFee", 0);
+        thresholdSetter = new ThresholdSetter();
+        esm.modifyParameters("thresholdSetter", address(thresholdSetter));
 
         if (testRun == false) {
             vm.stopBroadcast();
