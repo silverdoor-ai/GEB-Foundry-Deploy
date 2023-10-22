@@ -245,18 +245,14 @@ contract SafeState is Script, Parameters {
         }
         chainId = id;
 
-        taxCollector.taxSingle(collateralTypeBytes32);
-
         deployProxies();
+        vm.stopBroadcast();
         mintAllTokens();
         setApprovals();
         openAllSafes();
-        if (testRun == false) {
-            vm.stopBroadcast();
-        }
 
     }
 
-    // forge script script/GEBDeploy.s.sol:GEBDeploy -f sepolia --broadcast --verify
+    // forge script script/SafeState.s.sol:SafeState -f sepolia --broadcast
 
 }

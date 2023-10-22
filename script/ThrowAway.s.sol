@@ -2,10 +2,12 @@ pragma solidity >=0.6.7;
 
 import "forge-std/Script.sol";
 import { SAFEEngine } from "geb/SAFEEngine.sol";
+import { TaxCollector } from "geb/TaxCollector.sol";
 
 contract ThrowAway is Script {
 
     SAFEEngine public safeEngine;
+    TaxCollector public taxCollector;
     bool testRun;
     bytes32 public collateralTypeBytes32 = bytes32("TestToken");
     string public RPC_URL;
@@ -15,6 +17,7 @@ contract ThrowAway is Script {
         RPC_URL = vm.envString("SEPOLIA_RPC");
         address deployer = vm.rememberKey(privKey);
         safeEngine = SAFEEngine(vm.envAddress("SAFEENGINE"));
+        taxCollector = TaxCollector(vm.envAddress("TAXCOLLECTOR"));
         if (testRun == false) {
             vm.startBroadcast(deployer);
         }
@@ -23,7 +26,7 @@ contract ThrowAway is Script {
             vm.startPrank(deployer);
             vm.deal(deployer, 100 ether);
         }
-        safeEngine.modifyParameters(collateralTypeBytes32, "liquidationPrice", 10 ** 27 * 5000 ether);
+        taxCollector.modifyParameters("globalStabilityFee", 0);
 
         if (testRun == false) {
             vm.stopBroadcast();

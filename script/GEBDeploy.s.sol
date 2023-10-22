@@ -163,8 +163,6 @@ contract GEBDeploy is Script, Parameters {
         taxCollector.initializeCollateralType(collateralTypeBytes32);
 
         taxCollector.modifyParameters(collateralTypeBytes32, taxCollectorStabilityFee, RAY);
-
-        taxCollector.modifyParameters(taxCollectorGlobalStabilityFee, RAY);
         taxCollector.modifyParameters(taxCollectorMaxSecondaryReceivers, 2);
     }
 
